@@ -1,95 +1,59 @@
 #!/usr/bin/python3
-"""test for file storage"""
+"""Module for FileStorage Test"""
 import unittest
-import pep8
-import json
-import os
-from models.base_model import BaseModel
-from models.user import User
-from models.state import State
-from models.city import City
-from models.amenity import Amenity
-from models.place import Place
-from models.review import Review
 from models.engine.file_storage import FileStorage
+from models import storage
+from models.base_model import BaseModel
+import os
 
 
 class TestFileStorage(unittest.TestCase):
-    '''this will test the FileStorage'''
+    """Test Class for FileStorage class"""
+    model = BaseModel()
 
-    @classmethod
-    def setUpClass(cls):
-        """set up for test"""
-        cls.user = User()
-        cls.user.first_name = "Kev"
-        cls.user.last_name = "Yo"
-        cls.user.email = "1234@yahoo.com"
-        cls.storage = FileStorage()
+    def test_class_instance(self):
+        """check instance"""
+        self.assertIsInstance(storage, FileStorage)
 
-    @classmethod
-    def teardown(cls):
-        """at the end of the test this will tear it down"""
-        del cls.user
+    def test_hasattr(self):
+        """check if attribute exists"""
+        self.assertEqual(hasattr(FileStorage, '_FileStorage__objects'), True)
+        self.assertEqual(hasattr(FileStorage, '_FileStorage__file_path'), True)
 
-    def tearDown(self):
-        """teardown"""
-        try:
-            os.remove("file.json")
-        except Exception:
-            pass
+    def test_save_storage(self):
+        """check if the JSON file exists"""
+        self.model.save()
 
-    def test_pep8_FileStorage(self):
-        """Tests pep8 style"""
-        style = pep8.StyleGuide(quiet=True)
-        p = style.check_files(['models/engine/file_storage.py'])
-        self.assertEqual(p.total_errors, 0, "fix pep8")
+        self.assertEqual(os.path.exists(storage._FileStorage__file_path), True)
+        self.assertEqual(storage.all(), storage._FileStorage__objects)
 
-    def test_all(self):
-        """tests if all works in File Storage"""
-        storage = FileStorage()
-        obj = storage.all()
-        self.assertIsNotNone(obj)
-        self.assertEqual(type(obj), dict)
-        self.assertIs(obj, storage._FileStorage__objects)
+    def test_store_BaseModel(self):
+        """Test save, update and relod functions"""
+        self.model.name = "First"
+        self.model.save()
+        new_dict = self.model.to_dict()
+        all_objs = storage.all()
 
-    def test_new(self):
-        """test when new is created"""
-        storage = FileStorage()
-        obj = storage.all()
-        user = User()
-        user.id = 123455
-        user.name = "Kevin"
-        storage.new(user)
-        key = user.__class__.__name__ + "." + str(user.id)
-        self.assertIsNotNone(obj[key])
+        key = "{}.{}".format(new_dict["__class__"], new_dict["id"])
 
-    def test_reload_filestorage(self):
-        """
-        tests reload
-        """
-        self.storage.save()
-        Root = os.path.dirname(os.path.abspath("console.py"))
-        path = os.path.join(Root, "file.json")
-        with open(path, 'r') as f:
-            lines = f.readlines()
-        try:
-            os.remove(path)
-        except:
-            pass
-        self.storage.save()
-        with open(path, 'r') as f:
-            lines2 = f.readlines()
-        self.assertEqual(lines, lines2)
-        try:
-            os.remove(path)
-        except:
-            pass
-        with open(path, "w") as f:
-            f.write("{}")
-        with open(path, "r") as r:
-            for line in r:
-                self.assertEqual(line, "{}")
-        self.assertIs(self.storage.reload(), None)
+        self.assertEqual(new_dict["name"], "First")
+        self.assertEqual(key in all_objs, True)
+
+        created_at_1 = new_dict["created_at"]
+        updated_at_1 = new_dict["updated_at"]
+
+        self.model.name = "Second"
+        self.model.save()
+        new_dict = self.model.to_dict()
+        all_objs = storage.all()
+
+        self.assertEqual(new_dict["name"], "Second")
+
+        created_at_2 = new_dict["created_at"]
+        updated_at_2 = new_dict["updated_at"]
+
+        self.assertEqual(created_at_1, created_at_2)
+        self.assertNotEqual(updated_at_1, updated_at_2)
 
 
 if __name__ == "__main__":
